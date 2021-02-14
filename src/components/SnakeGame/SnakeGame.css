@@ -1,35 +1,19 @@
 #GameBoard {
 	position: relative;
-	margin: auto;
-	border-style: solid;
-}
-
-#GameBoard .Block {
-	position: absolute;
-}
-
-#GameBoard #GameOver {
-	text-align: center;
-	height: 100%;
-	flex-direction: column;
 	display: flex;
-	justify-content: space-around;
+	justify-content: center;
 }
 
-#GameBoard #Score {
-	position: relative;
-	top: 105%;
-	text-align: center;
-	font-weight: bold;
+#GameBoard canvas, #overlay {
+	position: absolute;
+	display: flex;
+	justify-content: center;
+	align-items: center;
 }
 
-#GameBoard #GameOverText {
-	color: #ca0000;
-	font-weight: bold;
-	text-decoration-line: underline;
-}
-
-#GameBoard #PressSpaceText {
-	color: #2e7ecb;
-	font-weight: bold;
+.Play-Btn {
+  width: 12vmin;
+  height: 12vmin;
+  position: absolute;
+  padding-top: 45rem; 
 }

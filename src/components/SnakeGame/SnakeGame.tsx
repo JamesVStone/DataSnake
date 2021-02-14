@@ -1,9 +1,13 @@
 import React from 'react'
 import './SnakeGame.css'
+import { ReactComponent as PlayBtn} from './play.svg'
 
 interface Props {
-  width: number,
-  height: number,
+  size: number,
+  onMove: (id: number, direction: number) => void
+  onApple: (id: number, x: number, y: number) => void
+  onStart: () => void
+  onEnd: () => void
 }
 
 interface GridPos {
@@ -19,10 +23,9 @@ enum Direction {
 }
 
 interface State {
-    width: number,
-    height: number,
     snake: GridPos[],
     apple: GridPos,
+    moves: Direction[],
     direction: Direction,
     isAlive: boolean,
     score: number,
@@ -30,90 +33,149 @@ interface State {
 }
 
 class SnakeGame extends React.Component<Props, State> {
-    state: State = {
-      width: 0,
-      height: 0,
-      snake: [],
-      apple: { x: 0, y: 0 },
-      direction: Direction.Right,
-      isAlive: false,
-      score: 0,
-      frame: 0,
+  state: State = {
+    snake: [],
+    moves: [],
+    apple: { x: 0, y: 0 },
+    direction: Direction.Right,
+    isAlive: false,
+    score: 0,
+    frame: 0,
   }
+
+  gameInterval?: number
+  size: number
+  canvas!: HTMLCanvasElement
 
   constructor(props: Props) {
     super(props)
 
     this.handleKeyDown = this.handleKeyDown.bind(this)
+    this.size = this.props.size
+    this.game = this.game.bind(this)
   }
 
-  componentWillMount() {
-    this.initGame()
-    window.addEventListener('keydown', this.handleKeyDown)
-  }
-
-  initGame() {
-    // Game size initialization
-    let width: number = this.props.width
-    let height: number = this.props.height
-    let blockWidth = width / 30
-    let blockHeight = height / 20
-
+  resetGame() {
+    this.props.onStart()
     // snake initialization
     let startSnakeSize = 3
     let snake = []
-    let Xpos = Math.floor(width / 2)
-    let Ypos = Math.floor(height / 2)
-    snake.push({x: Xpos, y: Ypos})
+    let x = Math.floor((this.size) / 64)
+    let y = Math.floor(this.size / 64)
+    snake.push({x, y})
+
     for (let i = 1; i < startSnakeSize; i++) {
-      Xpos -= 1
-      let snakePart: GridPos = { x: Xpos, y: Ypos }
+      x -= 1
+      let snakePart: GridPos = { x, y }
       snake.push(snakePart)
     }
 
-    // apple position initialization
-    let appleXpos =
-      Math.floor(Math.random() * ((width - blockWidth) / blockWidth + 1)) *
-      blockWidth
-    let appleYpos =
-      Math.floor(Math.random() * ((height - blockHeight) / blockHeight + 1)) *
-      blockHeight
-    while (appleYpos === snake[0].y) {
-      appleYpos =
-        Math.floor(Math.random() * ((height - blockHeight) / blockHeight + 1)) *
-        blockHeight
-    }
 
     this.setState({
-      width,
-      height,
+      frame: 0,
+      score: 0,
+      direction: Direction.Right,
       snake,
       isAlive: true,
-      apple: { x: appleXpos, y: appleYpos },
+      moves: []
     })
+
+    this.spawnApple()
+
+    const tickRate = 1000/8
+    this.gameInterval = window.setInterval(this.game, tickRate)
   }
 
   componentDidMount() {
-    this.gameLoop()
+    this.resetGame()
+    this.setState({
+      isAlive: false
+    })
+    window.addEventListener('keydown', this.handleKeyDown)
   }
 
-  gameLoop() {
-    setInterval(() => {
+  spawnApple() {
+    let x = Math.floor(Math.random() * 16)
+    let y = Math.floor(Math.random() * 16)
+
+    while (this.state.snake.map(s => JSON.stringify(s)).includes(JSON.stringify({ x, y }))) {
+      x = Math.floor(Math.random() * 16)
+      y = Math.floor(Math.random() * 16)
+    }
+
+    this.props.onApple(this.state.frame, x, y)
+    
+    this.setState({
+      apple: {x, y}
+    })
+  }
+
+  game() {
       // inc frame
       this.setState({
         frame: this.state.frame + 1
       })
+
+      // update direction state
+      if (this.state.moves.length > 0) {
+        const newDir = this.state.moves[0]
+        this.setState({
+          direction: newDir
+        })
+        this.setState({
+          moves: this.state.moves.slice(1)
+        })
+
+      }
       // move snake
       this.moveSnake()
 
-      // render snake on canvas
-      this.render()
-      // sleep some ms? maybe. yes I'm think about 60 times a second so wait 100/6 mili
-      }, 100/6)
+      // detect apple
+      const apple = this.state.apple
+      if (apple.x === this.state.snake[0].x && apple.y === this.state.snake[0].y) {
+        this.spawnApple()
+        this.setState({
+          score: this.state.score + 1,
+          snake: [
+            apple,
+            ...this.state.snake
+          ]
+        })
+      }
+
+      const ctx = this.canvas!.getContext('2d')
+      // background
+      for (let y = 0; y < this.size / 32; y++) {
+        for (let x = 0; x < this.size / 32; x++) {
+          
+        ctx!.fillStyle = (y%2) ? (x%2) ? '#27d817' : '#1abc0b' : (x%2) ? '#1abc0b' : '#27d817'
+        ctx!.fillRect(x * 32, y * 32, 32, 32)
+        }
+      }
+
+      // snake
+      this.state.snake.forEach((s) => {
+        ctx!.fillStyle = 'cyan'
+        ctx!.fillRect((s.x * 32) + 2, (s.y * 32) + 2, 28, 28)
+      })
+
+      ctx!.fillStyle = 'blue'
+      const head = this.state.snake[0]
+      ctx!.fillRect((head.x * 32) + 2, (head.y * 32) + 2, 28, 28)
+
+      // apple
+      ctx!.fillStyle = 'red'
+      ctx!.fillRect((apple.x * 32) + 2 , (apple.y * 32) + 2, 28, 28)
+
+      if (!this.state.isAlive) {
+        window.clearInterval(this.gameInterval)
+      }
   }
+
 
   componentWillUnmount() {
     window.removeEventListener('keydown', this.handleKeyDown)
+    window.clearInterval(this.gameInterval)
   }
 
   moveSnake() {
@@ -122,77 +184,107 @@ class SnakeGame extends React.Component<Props, State> {
 
     switch (this.state.direction) {
       case Direction.Down:
-        y -= 0.25
+        y += 1
         break
       case Direction.Up:
-        y += 0.25
+        y -= 1
         break
       case Direction.Left:
-        x -= 0.25
+        x -= 1
         break
       case Direction.Right:
-        x += 0.25
+        x += 1
         break
       default:
     }
     snake.splice(0, 0, {x, y})
     snake.pop();
 
+    // check wall collision
+    if (x < 0 || x > (this.size/32 - 1) || y < 0 || y > (this.size/32 -1)) {
+      this.setState({
+        isAlive: false
+      })
+      this.props.onEnd()
+    }
+
+    // check snake collision
+
+    if (snake.slice(1).map(s => JSON.stringify(s)).includes(JSON.stringify(snake[0]))) {
+        this.setState({
+          isAlive: false
+        })
+        this.props.onEnd()
+    }
+
     this.setState({
       snake
     })
   }
 
-  tryToEatApple() {
-    
-  }
-
-  tryToEatSnake() {
-  }
-
-  moveHead() {
-  }
-
   handleKeyDown(event: { keyCode: number }) {
-    // if spacebar is pressed to run a new game
 
-    const dir = this.state.direction
+    let ldir = this.state.moves.slice(-1)[0]
+    if(ldir === undefined) {
+      ldir = this.state.direction
+    }
 
     switch (event.keyCode) {
       case 37:
       case 65:
-        // left
-        if (dir !== Direction.Right) {
+        // lef
+        if (ldir !== Direction.Right && ldir !== Direction.Left && this.state.isAlive) {
           this.setState({
-            direction: Direction.Left
+            moves: [
+              ...this.state.moves,
+              Direction.Left
+            ]
           })
-        }
-        break
+          this.props.onMove(this.state.frame, Direction.Left)
+          }
+          break
       case 38:
       case 87:
         // up
-        if (dir !== Direction.Down) {
+        if (ldir !== Direction.Down && ldir !== Direction.Up && this.state.isAlive) {
           this.setState({
-            direction: Direction.Up
+            moves: [
+              ...this.state.moves,
+              Direction.Up
+            ]
           })
+          this.props.onMove(this.state.frame, Direction.Up)
         }
         break
       case 39:
       case 68:
         // right
-        if (dir !== Direction.Left) {
+        if (ldir !== Direction.Left && ldir !== Direction.Right && this.state.isAlive) {
           this.setState({
-            direction: Direction.Right
+            moves: [
+              ...this.state.moves,
+              Direction.Right
+            ]
           })
+          this.props.onMove(this.state.frame, Direction.Right)
         }
         break
       case 40:
       case 83:
         //down
-        if (dir !== Direction.Up) {
+        if (ldir !== Direction.Up && ldir !== Direction.Down && this.state.isAlive) {
           this.setState({
-            direction: Direction.Down
+            moves: [
+              ...this.state.moves,
+              Direction.Down
+            ]
           })
+          this.props.onMove(this.state.frame, Direction.Down)
+        }
+        break
+      case 32:
+        if (!this.state.isAlive) {
+          this.resetGame()
         }
         break
       default:
@@ -200,25 +292,19 @@ class SnakeGame extends React.Component<Props, State> {
   }
 
   render() {
-    if (!this.state.isAlive) {
-        return (
-            <h1>Game Over</h1>
-        )
-    }
-
     return (
-      <>
-        <h1>X: {this.state.snake[0].x} Y: {this.state.snake[0].y}</h1>
-        <h2>Direction: {this.state.direction} </h2>
-        <h2>Frame: {this.state.frame}</h2>
-        <ul>
-        {this.state.snake.map(s => {
-          return (
-            <li>X: {s.x} Y: {s.y}</li>
-          )
-        })}
-        </ul>
-      </>
+      <div id={"GameBoard"}>
+        <canvas
+          width={this.size}
+          height={this.size}
+          style={{width:this.size, height:this.size, border:"1px solid black"}}
+          ref={(r) => {this.canvas = r as HTMLCanvasElement}} />
+        {!this.state.isAlive && 
+          <div id="overlay">
+            <PlayBtn className="Play-Btn" onClick={_ => this.resetGame()} />
+          </div>
+        }
+      </div>
     )
   }
 }
