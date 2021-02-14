@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react'
 import Button from 'react-bootstrap/Button'
 import './App.css';
 import SnakeGame from './components/SnakeGame/SnakeGame'
-import 'bootstrap/dist/css/bootstrap.min.css'
 
 enum event {
   MOVE,
@@ -70,7 +69,8 @@ function App() {
           <Button onClick={_ => setGdpr(true)}>Close</Button>
         </div>
       }
-      <p>For my dataset I am hoping to get around 10+ games per participant. The more you have time for the better. Enjoy.</p>
+      <p>For my dataset I am hoping to get around 10+ games per participant. The more you have time for the better. Hit the play button or press
+        space to start. Move with either WASD or the arrow keys. Enjoy.</p>
       <SnakeGame
         size={800}
         onMove={(id, direction) => {
